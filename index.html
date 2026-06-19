@@ -1599,12 +1599,11 @@ const _preloadCache = new Set();  // 已加载的图片URL缓存
 
 // 先从关键图开始
 function preloadCritical() {
+  // 不再阻塞标题页！立即显示标题页，资源在后台继续加载
   const bar = document.getElementById('loading-bar-fill');
   const text = document.getElementById('loading-text');
   const total = PRELOAD_CRITICAL.length;
   let loaded = 0;
-
-  if (total === 0) { finishLoading(); return; }
 
   text.textContent = '正在准备…';
 
@@ -1620,6 +1619,9 @@ function preloadCritical() {
     };
     img.src = src;
   });
+
+  // 立即显示标题页（不等资源加载完）
+  setTimeout(finishLoading, 100);
 }
 
 // 按场景懒加载：只预加载当前+后续2个场景的图片（而非一次性20+张）
