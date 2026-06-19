@@ -2701,40 +2701,15 @@ function playTitleMusic() {
   playLoop(key, 0.15, 2000);
 }
 
-// 音频解锁：静默启动 + 首次交互后取消静音（绕过浏览器自动播放策略）
-// 浏览器允许静音 autoplay；加载后立刻静音播放，用户首次点击即取消静音
+// 音频解锁：用户首次交互后再创建并播放标题音乐（不提前下载）
 let _audioUnlocked = false;
-(function _silentStart() {
-  try {
-    const a = _ensureAudio('musicbox');
-    a.muted = true;
-    a.loop = true;
-    a.volume = 0.15 * settings.musicVolume;
-    a._baseVolume = 0.15;
-    a.play().then(() => {
-      console.log('[Audio] 静默启动成功，等待用户交互...');
-    }).catch(() => {
-      console.warn('[Audio] 静默启动失败，将在交互后播放');
-    });
-  } catch (e) {}
-})();
 function _unlockAudio() {
   if (_audioUnlocked) return;
   _audioUnlocked = true;
-  // 取消静音（音乐已经在背景播放中）
-  try {
-    const a = _ensureAudio('musicbox');
-    a.muted = false;
-    // 如果静默启动失败，补一次播放
-    if (a.paused) {
-      const allCollected = endingsCollected.length === 5;
-      const key = allCollected ? 'musicbox_full' : 'musicbox';
-      stopLoop(key === 'musicbox' ? 'musicbox_full' : 'musicbox');
-      playLoop(key, 0.15, 2000);
-    }
-  } catch (e) {}
+  playTitleMusic();
+  console.log('[Audio] 用户已交互，开始播放标题音乐');
 }
-// 点击/按键/触摸 → 取消静音
+// 在标题页上监听首次交互
 document.addEventListener('click', _unlockAudio, { once: true });
 document.addEventListener('keydown', _unlockAudio, { once: true });
 document.addEventListener('touchstart', _unlockAudio, { once: true });
@@ -2743,6 +2718,17 @@ document.addEventListener('touchstart', _unlockAudio, { once: true });
 console.log('忒修斯之船 · 已就绪');
 console.log('分支数: 8 | 结局数: 5 | 场景数: ' + Object.keys(SCENES).length);
 console.log('[Audio] 等待用户首次交互以解锁音频...');
+
+// Service Worker 注册
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      console.log('[SW] 已注册，作用域：', reg.scope);
+    }).catch(err => {
+      console.warn('[SW] 注册失败：', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
