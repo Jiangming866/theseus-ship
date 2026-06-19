@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>忒修斯之船</title>
+
+<!-- 预加载关键资源，加速首屏 -->
+<link rel="preload" href="font/HuiWenMingChao-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="images/title/illust.webp" as="image">
+<link rel="preload" href="images/title/title.webp" as="image">
+
 <style>
 /* @font-face {
   font-family: 'PixelFont';
@@ -53,17 +59,13 @@ body {
 #bg-layer.nightmare { background: radial-gradient(ellipse at 50% 50%, #1a0410 0%, #0a0208 40%, #000 80%); }
 #bg-layer.ending { background: #000; transition: opacity 3s ease; }
 
-/* 颗粒噪点效果 */
+/* 颗粒噪点效果 - 使用静态PNG替代SVG feTurbulence滤镜（GPU友好） */
 #grain {
   position: absolute; inset: 0;
   z-index: 1; opacity: 0.04;
   pointer-events: none;
-}
-#grain::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  background-size: 256px;
+  background-image: url('images/grain.png');
+  background-size: 128px;
 }
 
 /* 场景图占位 - 全屏背景 */
@@ -1549,7 +1551,7 @@ const CHAR_IMAGES = {
 // 图片预加载
 // ============================================
 
-// ===== 分级预加载：只先加载标题页必需的图，其余后台静默加载 =====
+// ===== 分级预加载：只先加载标题页必需的图，其余按场景懒加载 =====
 
 const PRELOAD_CRITICAL = [
   // 标题页UI（总共~30KB，秒开）
@@ -1570,11 +1572,30 @@ const PRELOAD_CRITICAL = [
   'images/gallery_slot5.webp',
 ].filter(Boolean);
 
-const PRELOAD_BACKGROUND = [
-  ...Object.values(SCENE_IMAGES),
-  ...Object.values(CHAR_IMAGES),
-  ...Object.values(ENDING_CG),
-].filter(Boolean);
+// 场景→所需图片映射（用于按需预加载）
+const SCENE_ASSETS = {
+  s0:    ['images/accident.webp'],
+  s1:    ['images/campfire_bg.webp', 'images/char_mumu.webp', 'images/char_oldman.webp'],
+  s2:    ['images/morning_forest2.webp', 'images/char_mumu.webp', 'images/char_oldman.webp', 'images/char_rabbit.webp'],
+  s_bad1:['images/morning_forest2.webp', 'images/char_mumu.webp', 'images/char_rabbit.webp'],
+  s4:    ['images/morning_forest2.webp', 'images/char_mumu.webp', 'images/char_oldman.webp'],
+  s5:    ['images/cabin_exterior.webp', 'images/cabin_inside.webp', 'images/char_oldman.webp', 'images/char_mother_cold.webp'],
+  s5b:   ['images/morning_forest2.webp', 'images/char_mumu.webp', 'images/char_oldman.webp'],
+  s6:    ['images/fog.webp', 'images/char_mumu.webp'],
+  s7:    ['images/cave.webp', 'images/char_mother_cold.webp'],
+  s8:    ['images/cave.webp', 'images/char_mother.webp', 'images/char_father.webp', 'images/char_daughter.webp'],
+  s_bad2:['images/cave.webp'],
+  s10:   ['images/forest_escape.webp', 'images/char_mumu.webp'],
+  s_oe:  ['images/ending_oe.webp'],
+  s11:   ['images/broken_tree.webp', 'images/char_mumu.webp', 'images/char_oldman.webp'],
+  s_end3:['images/broken_tree.webp'],
+  s_end4:['images/broken_tree.webp'],
+};
+
+// 场景推进顺序（用于预加载后续场景）
+const SCENE_ORDER = ['s0','s1','s2','s4','s5','s5b','s6','s7','s8','s10','s_oe','s11','s_end3','s_end4','s_bad1','s_bad2'];
+
+const _preloadCache = new Set();  // 已加载的图片URL缓存
 
 // 先从关键图开始
 function preloadCritical() {
@@ -1586,10 +1607,11 @@ function preloadCritical() {
   if (total === 0) { finishLoading(); return; }
 
   text.textContent = '正在准备…';
-  
+
   PRELOAD_CRITICAL.forEach(src => {
     const img = new Image();
     img.onload = img.onerror = () => {
+      _preloadCache.add(src);
       loaded++;
       bar.style.width = Math.round((loaded / total) * 100) + '%';
       if (loaded >= total) {
@@ -1600,14 +1622,32 @@ function preloadCritical() {
   });
 }
 
-function preloadBackground() {
-  // 后台静默加载场景、角色、CG
-  PRELOAD_BACKGROUND.forEach(src => {
+// 按场景懒加载：只预加载当前+后续2个场景的图片（而非一次性20+张）
+function preloadForScene(sceneId) {
+  const idx = SCENE_ORDER.indexOf(sceneId);
+  if (idx === -1) return;
+
+  // 预取当前场景及之后2个场景的资源
+  const toPreload = new Set();
+  for (let i = idx; i < Math.min(idx + 3, SCENE_ORDER.length); i++) {
+    const sid = SCENE_ORDER[i];
+    if (SCENE_ASSETS[sid]) {
+      SCENE_ASSETS[sid].forEach(url => toPreload.add(url));
+    }
+  }
+
+  toPreload.forEach(src => {
+    if (_preloadCache.has(src)) return;  // 已加载过则跳过
     const img = new Image();
+    img.onload = img.onerror = () => _preloadCache.add(src);
     img.src = src;
   });
-  // 音频改为按需加载：首次 play() 时再 load()，不再首屏预下载 53MB
-  console.log('[Audio] 已禁用首屏音频预加载，改为按需加载');
+}
+
+function preloadBackground() {
+  // 不再一次性全量加载！改为首屏只预加载序幕(s0)+第一章(s1)的资源
+  console.log('[Preload] 改为按场景懒加载模式');
+  preloadForScene('s0');
 }
 
 // 预加载关键音频文件，减少播放时的缓冲延迟
@@ -2366,6 +2406,9 @@ function loadScene(sceneId) {
   // 显示对话
   dialogueBox.classList.remove('hidden');
   showStep(0);
+
+  // 按需预加载后续场景图片（懒加载核心）
+  preloadForScene(sceneId);
 }
 
 function showStep(index) {
