@@ -1551,9 +1551,9 @@ const CHAR_IMAGES = {
 // 图片预加载
 // ============================================
 
-// ===== 分级预加载：只先加载标题页必需的图，其余按场景懒加载 =====
-
-const PRELOAD_CRITICAL = [
+// 内嵌关键图片（Base64）— 标题页零请求立即显示！
+// 这些图片不再需要从 GitHub Pages 下载，随 HTML 一起加载
+const _inlineImages = {
   // 标题页UI（总共~30KB，秒开）
   'images/title/bg.webp',
   'images/title/btn.webp',
@@ -1599,29 +1599,25 @@ const _preloadCache = new Set();  // 已加载的图片URL缓存
 
 // 先从关键图开始
 function preloadCritical() {
-  // 不再阻塞标题页！立即显示标题页，资源在后台继续加载
+  // 标题页关键图片已全部 Base64 内嵌！零网络请求立即可用。
+  // 只需等 illust.webp（69KB 大插画）从网络加载。
   const bar = document.getElementById('loading-bar-fill');
-  const text = document.getElementById('loading-text');
-  const total = PRELOAD_CRITICAL.length;
-  let loaded = 0;
+  
+  // 立即标记所有内联图已就绪
+  Object.keys(_inlineImages).forEach(src => { _preloadCache.add(src); });
+  bar.style.width = '85%'; // 内嵌的占85%
 
-  text.textContent = '正在准备…';
+  // 后台只加载一张大插画
+  const img = new Image();
+  img.onload = img.onerror = () => {
+    _preloadCache.add('images/title/illust.webp');
+    bar.style.width = '100%';
+    setTimeout(finishLoading, 200);
+  };
+  img.src = 'images/title/illust.webp';
 
-  PRELOAD_CRITICAL.forEach(src => {
-    const img = new Image();
-    img.onload = img.onerror = () => {
-      _preloadCache.add(src);
-      loaded++;
-      bar.style.width = Math.round((loaded / total) * 100) + '%';
-      if (loaded >= total) {
-        setTimeout(finishLoading, 200);
-      }
-    };
-    img.src = src;
-  });
-
-  // 立即显示标题页（不等资源加载完）
-  setTimeout(finishLoading, 100);
+  // 即使大图没加载完也尽快显示标题页
+  setTimeout(finishLoading, 300);
 }
 
 // 按场景懒加载：只预加载当前+后续2个场景的图片（而非一次性20+张）
@@ -1642,7 +1638,12 @@ function preloadForScene(sceneId) {
     if (_preloadCache.has(src)) return;  // 已加载过则跳过
     const img = new Image();
     img.onload = img.onerror = () => _preloadCache.add(src);
+    // 优先使用内嵌的 base64 数据（零请求）
+  if (_inlineImages && _inlineImages[src]) {
+    img.src = _inlineImages[src];
+  } else {
     img.src = src;
+  }
   });
 }
 
