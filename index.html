@@ -1128,7 +1128,7 @@ const SOUNDS = {
   arrow:     'music/sfx/arrow.mp3',
   lowFlat:   'music/sfx/lowFlat.mp3',
   footsteps: 'music/sfx/footsteps.mp3',
-  musicbox:      _INLINE['music/sfx/musicbox.mp3'],
+  musicbox:      'music/sfx/musicbox.mp3',
   musicbox_full:  'music/sfx/musicbox_full.mp3',
 };
 
@@ -1139,8 +1139,11 @@ const _audioReady = {};  // 跟踪音频是否已缓冲完毕
 // 预创建所有音频对象（静音状态，避免自动播放限制）
 function _ensureAudio(key) {
   if (!_audioCache[key]) {
-    const a = new Audio(SOUNDS[key]);
-    a.preload = 'none';  // 不预下载数据，按需加载（首屏不再下载 53MB 音乐）
+    let src = SOUNDS[key];
+    // 如果有内嵌 base64 版本，优先使用（零网络请求）
+    if (typeof _INLINE !== 'undefined' && _INLINE[src]) src = _INLINE[src];
+    const a = new Audio(src);
+    a.preload = 'auto';  // 内嵌数据立即可用；网络文件按需加载
     _audioCache[key] = a;
     _audioReady[key] = false;
     // 监听就绪
@@ -1667,11 +1670,11 @@ function preloadForScene(sceneId) {
     const img = new Image();
     img.onload = img.onerror = () => _preloadCache.add(src);
     // 优先使用内嵌的 base64 数据（零请求）
-  if (_inlineImages && _inlineImages[src]) {
-    img.src = _inlineImages[src];
-  } else {
-    img.src = src;
-  }
+    if (typeof _INLINE !== 'undefined' && _INLINE[src]) {
+      img.src = _INLINE[src];
+    } else {
+      img.src = src;
+    }
   });
 }
 
