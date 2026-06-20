@@ -1553,7 +1553,7 @@ const CHAR_IMAGES = {
 
 // 内嵌关键图片（Base64）— 标题页零请求立即显示！
 // 这些图片不再需要从 GitHub Pages 下载，随 HTML 一起加载
-const _inlineImages = {
+const PRELOAD_CRITICAL = [
   // 标题页UI（总共~30KB，秒开）
   'images/title/bg.webp',
   'images/title/btn.webp',
@@ -1570,7 +1570,7 @@ const _inlineImages = {
   'images/gallery_slot3.webp',
   'images/gallery_slot4.webp',
   'images/gallery_slot5.webp',
-].filter(Boolean);
+];
 
 // 场景→所需图片映射（用于按需预加载）
 const SCENE_ASSETS = {
@@ -1604,7 +1604,7 @@ function preloadCritical() {
   const bar = document.getElementById('loading-bar-fill');
   
   // 立即标记所有内联图已就绪
-  Object.keys(_inlineImages).forEach(src => { _preloadCache.add(src); });
+  PRELOAD_CRITICAL.forEach(src => { _preloadCache.add(src); });
   bar.style.width = '85%'; // 内嵌的占85%
 
   // 后台只加载一张大插画
