@@ -1639,6 +1639,10 @@ function preloadCritical() {
 
   bar.style.width = '90%';
 
+  // 预加载标题页音乐（不播放，仅下载缓冲，用户点击后立即可播）
+  _ensureAudio('musicbox');
+  _ensureAudio('musicbox_full');
+
   // 后台加载大插画 illust.webp（69KB，不阻塞标题页显示）
   const img = new Image();
   img.onload = img.onerror = () => {
@@ -2732,16 +2736,19 @@ function playTitleMusic() {
   const key = allCollected ? 'musicbox_full' : 'musicbox';
   const alt  = allCollected ? 'musicbox' : 'musicbox_full';
   stopLoop(alt);
-  playLoop(key, 0.15, 2000);
+  playLoop(key, 0.35, 1500);
 }
 
-// 音频解锁：用户首次交互后再创建并播放标题音乐（不提前下载）
+// 音频解锁：用户首次交互后播放标题音乐
 let _audioUnlocked = false;
 function _unlockAudio() {
   if (_audioUnlocked) return;
   _audioUnlocked = true;
-  playTitleMusic();
-  console.log('[Audio] 用户已交互，开始播放标题音乐');
+  // 只有还在标题页时才播放标题音乐（避免用户直接点"开始游戏"时音乐误播）
+  if (!currentScene) {
+    playTitleMusic();
+    console.log('[Audio] 用户已交互，开始播放标题音乐');
+  }
 }
 // 在标题页上监听首次交互
 document.addEventListener('click', _unlockAudio, { once: true });
