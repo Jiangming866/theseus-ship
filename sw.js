@@ -1,7 +1,7 @@
-// Service Worker - 忒修斯之船
+﻿// Service Worker - 忒修斯之船
 // 策略：HTML 文件 network-first（始终拿最新），其他资源 stale-while-revalidate
 
-const CACHE_NAME = 'theseus-ship-v2';
+const CACHE_NAME = 'theseus-ship-v3';
 
 // 安装时只预缓存标题页最小集合（~30KB），其余按需缓存
 const PRE_CACHE = [
