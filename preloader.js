@@ -1,184 +1,225 @@
 /**
- * 忒修斯之船 — 资源预下载器
- * 在游戏开始前下载所有资源到浏览器HTTP缓存
- * 下载完成后自动跳转到 game.html
+ * 忒修斯之船 — 资源预下载器 v2
+ * 动态获取文件大小，进度条准确
+ * 支持跳过预下载直接进入游戏
  */
 (function () {
   'use strict';
 
-  // 预下载资源列表（URL + 预估大小，字节）
+  // 预下载资源URL列表
   var RESOURCES = [
-    // 音频（约13.5MB）
-    { url: 'audio/crash.mp3', size: 416256 },
-    { url: 'music/sfx/arrow.mp3', size: 5939 },
-    { url: 'music/sfx/birds.mp3', size: 4650504 },
-    { url: 'music/sfx/campfire.mp3', size: 960307 },
-    { url: 'music/sfx/flesh.mp3', size: 13824 },
-    { url: 'music/sfx/footsteps.mp3', size: 71475 },
-    { url: 'music/sfx/gentleSad.mp3', size: 985005 },
-    { url: 'music/sfx/grow.mp3', size: 26214 },
-    { url: 'music/sfx/heartbeat.mp3', size: 512410 },
-    { url: 'music/sfx/hit.mp3', size: 17408 },
-    { url: 'music/sfx/lowFlat.mp3', size: 1284096 },
-    { url: 'music/sfx/monster.mp3', size: 192922 },
-    { url: 'music/sfx/monsterS.mp3', size: 25907 },
-    { url: 'music/sfx/musicbox.mp3', size: 756326 },
-    { url: 'music/sfx/musicbox_full.mp3', size: 1530163 },
-    { url: 'music/sfx/quirky.mp3', size: 820122 },
-    { url: 'music/sfx/rain.mp3', size: 162611 },
-    { url: 'music/sfx/sadBgm.mp3', size: 1245901 },
-    { url: 'music/sfx/sadFail.mp3', size: 780390 },
-    { url: 'music/sfx/tinnitus.mp3', size: 95949 },
-    // 图片（约2.7MB）
-    { url: 'images/title/bg.webp', size: 4813 },
-    { url: 'images/title/btn.webp', size: 512 },
-    { url: 'images/title/illust.webp', size: 70861 },
-    { url: 'images/title/panel_bg.webp', size: 4813 },
-    { url: 'images/title/panel_btn.webp', size: 819 },
-    { url: 'images/title/slot_bg.webp', size: 1638 },
-    { url: 'images/title/slot_btn.webp', size: 819 },
-    { url: 'images/title/title.webp', size: 7475 },
-    { url: 'images/accident.webp', size: 296448 },
-    { url: 'images/broken_tree.webp', size: 193638 },
-    { url: 'images/cabin_exterior.webp', size: 128717 },
-    { url: 'images/cabin_inside.webp', size: 108032 },
-    { url: 'images/campfire_bg.webp', size: 54784 },
-    { url: 'images/cave.webp', size: 370074 },
-    { url: 'images/char_daughter.webp', size: 65638 },
-    { url: 'images/char_father.webp', size: 128410 },
-    { url: 'images/char_mother.webp', size: 185651 },
-    { url: 'images/char_mother_cold.webp', size: 185651 },
-    { url: 'images/char_mumu.webp', size: 50176 },
-    { url: 'images/char_oldman.webp', size: 62566 },
-    { url: 'images/char_rabbit.webp', size: 218010 },
-    { url: 'images/ending_bad1.webp', size: 103322 },
-    { url: 'images/ending_bad2.webp', size: 124211 },
-    { url: 'images/ending_end3.webp', size: 56832 },
-    { url: 'images/ending_oe.webp', size: 86016 },
-    { url: 'images/ending_true.webp', size: 170394 },
-    { url: 'images/fog.webp', size: 108237 },
-    { url: 'images/forest_escape.webp', size: 97587 },
-    { url: 'images/gallery_bg.webp', size: 4813 },
-    { url: 'images/gallery_slot1.webp', size: 1331 },
-    { url: 'images/gallery_slot2.webp', size: 1331 },
-    { url: 'images/gallery_slot3.webp', size: 1229 },
-    { url: 'images/gallery_slot4.webp', size: 1229 },
-    { url: 'images/gallery_slot5.webp', size: 1741 },
-    { url: 'images/morning_forest2.webp', size: 177049 },
-    // 字体（约0.5MB）
-    { url: 'font/HuiWenMingChao-subset.woff2', size: 565760 },
+    // 音频
+    'audio/crash.mp3',
+    'music/sfx/arrow.mp3',
+    'music/sfx/birds.mp3',
+    'music/sfx/campfire.mp3',
+    'music/sfx/flesh.mp3',
+    'music/sfx/footsteps.mp3',
+    'music/sfx/gentleSad.mp3',
+    'music/sfx/grow.mp3',
+    'music/sfx/heartbeat.mp3',
+    'music/sfx/hit.mp3',
+    'music/sfx/lowFlat.mp3',
+    'music/sfx/monster.mp3',
+    'music/sfx/monsterS.mp3',
+    'music/sfx/musicbox.mp3',
+    'music/sfx/musicbox_full.mp3',
+    'music/sfx/quirky.mp3',
+    'music/sfx/rain.mp3',
+    'music/sfx/sadBgm.mp3',
+    'music/sfx/sadFail.mp3',
+    'music/sfx/tinnitus.mp3',
+    // 图片
+    'images/title/bg.webp',
+    'images/title/btn.webp',
+    'images/title/illust.webp',
+    'images/title/panel_bg.webp',
+    'images/title/panel_btn.webp',
+    'images/title/slot_bg.webp',
+    'images/title/slot_btn.webp',
+    'images/title/title.webp',
+    'images/accident.webp',
+    'images/broken_tree.webp',
+    'images/cabin_exterior.webp',
+    'images/cabin_inside.webp',
+    'images/campfire_bg.webp',
+    'images/cave.webp',
+    'images/char_daughter.webp',
+    'images/char_father.webp',
+    'images/char_mother.webp',
+    'images/char_mother_cold.webp',
+    'images/char_mumu.webp',
+    'images/char_oldman.webp',
+    'images/char_rabbit.webp',
+    'images/ending_bad1.webp',
+    'images/ending_bad2.webp',
+    'images/ending_end3.webp',
+    'images/ending_oe.webp',
+    'images/ending_true.webp',
+    'images/fog.webp',
+    'images/forest_escape.webp',
+    'images/gallery_bg.webp',
+    'images/gallery_slot1.webp',
+    'images/gallery_slot2.webp',
+    'images/gallery_slot3.webp',
+    'images/gallery_slot4.webp',
+    'images/gallery_slot5.webp',
+    'images/morning_forest2.webp',
+    'images/grain.png',
+    // 字体
+    'font/HuiWenMingChao-subset.woff2',
     // 游戏页面
-    { url: 'game.html', size: 106496 }
+    'game.html'
   ];
 
-  var TOTAL_SIZE = 0;
+  var CONCURRENCY = 6;
   var loadedSize = 0;
-  var CONCURRENCY = 4;
-
-  // 计算总大小
-  for (var i = 0; i < RESOURCES.length; i++) {
-    TOTAL_SIZE += RESOURCES[i].size;
-  }
+  var totalSize = 0;
+  var skipped = false;
 
   // 格式化大小
-  function formatSize(bytes) {
+  function fmt(bytes) {
     if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' KB';
     return (bytes / 1048576).toFixed(1) + ' MB';
   }
 
   // 更新进度UI
   function updateProgress(currentFile) {
-    var percent = Math.min(100, Math.round((loadedSize / TOTAL_SIZE) * 100));
+    if (skipped) return;
+    var percent = totalSize > 0 ? Math.min(100, Math.round((loadedSize / totalSize) * 100)) : 0;
     var bar = document.getElementById('progress-bar');
     var percentEl = document.getElementById('percent');
     var fileEl = document.getElementById('current-file');
     var sizeEl = document.getElementById('size-info');
-
     if (bar) bar.style.width = percent + '%';
     if (percentEl) percentEl.textContent = percent + '%';
     if (fileEl && currentFile) fileEl.textContent = currentFile;
-    if (sizeEl) sizeEl.textContent = formatSize(loadedSize) + ' / ' + formatSize(TOTAL_SIZE);
+    if (sizeEl) sizeEl.textContent = fmt(loadedSize) + ' / ' + fmt(totalSize);
   }
 
-  // 下载单个文件（带字节级进度追踪）
-  function downloadFile(resource) {
-    return fetch(resource.url)
+  // 跳过预下载
+  function skipPreload() {
+    skipped = true;
+    var statusEl = document.getElementById('status-text');
+    var skipBtn = document.getElementById('skip-btn');
+    if (statusEl) statusEl.textContent = '正在进入游戏...';
+    if (skipBtn) skipBtn.style.display = 'none';
+    window.location.href = 'game.html';
+  }
+
+  // 下载单个文件
+  function downloadFile(url) {
+    return fetch(url)
       .then(function (response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
-
-        // 用 ReadableStream 追踪下载进度
+        var contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
         var reader = response.body.getReader();
 
         function readChunk() {
+          if (skipped) return;
           return reader.read().then(function (result) {
             if (result.done) return;
             loadedSize += result.value.length;
-            updateProgress(resource.url);
+            updateProgress(url);
             return readChunk();
           });
         }
-
         return readChunk();
       })
       .catch(function (error) {
-        // 单个文件失败不阻塞，用预估大小补上进度
-        console.warn('预下载失败:', resource.url, error.message);
-        loadedSize += resource.size;
-        updateProgress(resource.url + ' (跳过)');
+        console.warn('下载失败:', url, error.message);
       });
   }
 
-  // 并行下载所有资源
-  function startPreload() {
-    updateProgress('准备下载...');
+  // 第一阶段：HEAD请求获取所有文件大小
+  function fetchSizes() {
+    var statusEl = document.getElementById('status-text');
+    if (statusEl) statusEl.textContent = '正在获取资源信息...';
 
-    var queue = RESOURCES.slice();
+    var promises = RESOURCES.map(function (url) {
+      return fetch(url, { method: 'HEAD' })
+        .then(function (res) {
+          var len = parseInt(res.headers.get('Content-Length') || '0', 10);
+          return { url: url, size: len };
+        })
+        .catch(function () {
+          return { url: url, size: 0 };
+        });
+    });
 
-    // 创建 CONCURRENCY 个工作协程，从队列中取任务
+    return Promise.all(promises).then(function (results) {
+      for (var i = 0; i < results.length; i++) {
+        totalSize += results[i].size;
+      }
+      return results;
+    });
+  }
+
+  // 第二阶段：并行下载
+  function downloadAll(fileInfos) {
+    var queue = fileInfos.slice();
+
     function worker() {
-      if (queue.length === 0) return Promise.resolve();
-      var resource = queue.shift();
-      return downloadFile(resource).then(worker);
+      if (skipped || queue.length === 0) return Promise.resolve();
+      var item = queue.shift();
+      return downloadFile(item.url).then(worker);
     }
 
     var workers = [];
     for (var i = 0; i < CONCURRENCY; i++) {
       workers.push(worker());
     }
+    return Promise.all(workers);
+  }
 
-    Promise.all(workers)
+  // 启动
+  function start() {
+    var skipBtn = document.getElementById('skip-btn');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        skipPreload();
+      });
+    }
+
+    fetchSizes()
+      .then(function (fileInfos) {
+        if (skipped) return;
+        var statusEl = document.getElementById('status-text');
+        if (statusEl) statusEl.textContent = '';
+        updateProgress('开始下载...');
+        return downloadAll(fileInfos);
+      })
       .then(function () {
-        // 全部完成
+        if (skipped) return;
         var bar = document.getElementById('progress-bar');
         var percentEl = document.getElementById('percent');
         var fileEl = document.getElementById('current-file');
         var statusEl = document.getElementById('status-text');
+        var skipBtn = document.getElementById('skip-btn');
         if (bar) bar.style.width = '100%';
         if (percentEl) percentEl.textContent = '100%';
         if (fileEl) fileEl.textContent = '';
         if (statusEl) statusEl.textContent = '加载完成，正在进入游戏...';
-
-        // 短暂延迟后跳转
+        if (skipBtn) skipBtn.style.display = 'none';
         setTimeout(function () {
-          window.location.href = 'game.html';
-        }, 800);
+          if (!skipped) window.location.href = 'game.html';
+        }, 600);
       })
-      .catch(function (error) {
-        console.error('预下载出错:', error);
-        // 即使出错也尝试跳转到游戏
+      .catch(function () {
+        if (skipped) return;
         var statusEl = document.getElementById('status-text');
-        if (statusEl) statusEl.textContent = '部分资源加载失败，正在进入游戏...';
+        if (statusEl) statusEl.textContent = '正在进入游戏...';
         setTimeout(function () {
-          window.location.href = 'game.html';
-        }, 1500);
+          if (!skipped) window.location.href = 'game.html';
+        }, 1000);
       });
   }
 
-  // DOM 加载后启动
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startPreload);
+    document.addEventListener('DOMContentLoaded', start);
   } else {
-    startPreload();
+    start();
   }
 })();
