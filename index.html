@@ -2701,15 +2701,6 @@ console.log('忒修斯之船 · 已就绪');
 console.log('分支数: 8 | 结局数: 5 | 场景数: ' + Object.keys(SCENES).length);
 console.log('[Audio] 等待用户首次交互以解锁音频...');
 </script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('sw.js').catch(function(e) {
-      console.log('SW registration failed:', e);
-    });
-  });
-}
-</script>
 </body>
 </html>
 
