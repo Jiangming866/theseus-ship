@@ -1,7 +1,7 @@
 // Service Worker - 忒修斯之船
-// 策略：首次访问时逐资源缓存，重复访问直接走缓存（秒开）
+// 策略：HTML 文件 network-first（始终拿最新），其他资源 stale-while-revalidate
 
-const CACHE_NAME = 'theseus-ship-v1';
+const CACHE_NAME = 'theseus-ship-v2';
 
 // 安装时只预缓存标题页最小集合（~30KB），其余按需缓存
 const PRE_CACHE = [
@@ -51,10 +51,28 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  const url = new URL(event.request.url);
+  const isHTML = event.request.headers.get('accept')?.includes('text/html') ||
+                 url.pathname === '/' || url.pathname.endsWith('.html');
+
+  if (isHTML) {
+    // HTML 文件：network-first，确保始终拿到最新版本
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request).then(cached => cached || new Response('离线', { status: 503 })))
+    );
+    return;
+  }
+
+  // 其他资源：stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) {
-        // 缓存命中：后台更新（stale-while-revalidate）
         fetchAndCache(event.request);
         return cached;
       }
